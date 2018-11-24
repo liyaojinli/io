@@ -32,10 +32,15 @@ class EchoHandler implements Runnable {
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             // autoFlush:true
             writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()),true);
+            writer.println("hi " + this.socket.getRemoteSocketAddress()+" welcome to EchoServer,print the \"bye\" when you want to leave ");
             String line;
             while ((line = reader.readLine()) != null) {
                 // println() calls flush() when autoFlush is true
                 writer.println(line);
+                // print the "bye" to exit loop
+                if("bye".equalsIgnoreCase(line)){
+                    break;
+                }
             }
         } catch (Exception ex) {
             logger.error("An error occurred with EchoHandler...", ex);

@@ -19,6 +19,7 @@ public class SimpleBioEchoServer {
     private final Logger logger = Logger.getLogger(SimpleBioEchoServer.class);
     private ServerSocket serverSocket;
 
+
     public SimpleBioEchoServer(int port, int queueSize) {
         this.port = port;
         this.queueSize = queueSize;
@@ -41,15 +42,15 @@ public class SimpleBioEchoServer {
     }
 
     public void start() {
-        try{
-            serverSocket = new ServerSocket(this.port,this.queueSize);
+        try {
+            serverSocket = new ServerSocket(this.port, this.queueSize);
             logger.info(String.format("The server started successfully on port:%d with a connection queue size of %d", port, queueSize));
-            for(;;){
+            for (; ; ) {
                 Socket socket = serverSocket.accept();
-
+                new Thread(new EchoHandler(socket)).start();
             }
         } catch (IOException e) {
-            logger.error("Server startup error...",e);
+            logger.error("Server startup error...", e);
         }
     }
 }
