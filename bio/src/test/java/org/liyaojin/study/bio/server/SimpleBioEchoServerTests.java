@@ -5,10 +5,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.InetAddress;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,8 +54,8 @@ public class SimpleBioEchoServerTests {
                 TelnetClient client = new TelnetClient();
                 int index = 0;
                 for (; ; ) {
-                    System.out.println("try to connect server "+(++index)+" time");
-                    if(index >= 3){
+                    System.out.println("try to connect server " + (++index) + " time");
+                    if (index >= 3) {
                         throw new RuntimeException("can not connect to server...");
                     }
                     try {
@@ -67,18 +66,30 @@ public class SimpleBioEchoServerTests {
                     PrintWriter write;
                     try {
                         client.connect(InetAddress.getLocalHost(), serverFinal.getPort());
-                        write = new PrintWriter(new OutputStreamWriter(client.getOutputStream()),true);
                         System.out.println("connected the server ");
-                        write.println("bye");
-                        // 这样不能终端accept的阻塞，要想别的办法
-                        serverThread.interrupt();
                         break;
                     } catch (IOException e) {
                         continue;
                     }
                 }
+                PrintWriter write = new PrintWriter(new OutputStreamWriter(client.getOutputStream()), true);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                String toServerCmd = "hi i am client";
+                write.println(toServerCmd);
+                for(;;){
+                    try {
+                        String serverResponse = reader.readLine();
+                        if(null == serverResponse){
+                            break;
+                        }
+                        System.out.println(serverResponse);
+                    } catch (IOException e) {
+                        break;
+                    }
+                }
+                System.out.println("the client exit...");
             }
-        });
+        },"bioClientThread");
         serverThread.start();
         telnetThread.start();
         try {
