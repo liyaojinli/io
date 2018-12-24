@@ -1,4 +1,4 @@
-package org.liyaojin.study.bio.server;
+package org.liyaojin.study.bio;
 
 import org.apache.log4j.Logger;
 

@@ -1,4 +1,4 @@
-package org.liyaojin.study.bio.server;
+package org.liyaojin.study.bio;
 
 import org.apache.commons.net.telnet.TelnetClient;
 import org.junit.Assert;
@@ -7,7 +7,6 @@ import org.junit.Test;
 
 import java.io.*;
 import java.net.InetAddress;
-import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 /**
