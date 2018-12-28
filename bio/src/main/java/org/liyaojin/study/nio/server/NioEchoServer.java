@@ -28,6 +28,17 @@ public class NioEchoServer {
     private Selector selector;
     private volatile boolean stop;
 
+    static class Attachment {
+        int begin = 0;
+        int readedBytes = 0;
+        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        void clear(){
+            begin =0;
+            readedBytes = 0;
+            buffer.clear();
+        }
+    }
+
     public NioEchoServer(int port) {
         this.port = port;
         try {
@@ -60,43 +71,52 @@ public class NioEchoServer {
                                         .channel();
                                 SocketChannel channelClient = channelServer.accept();
                                 channelClient.configureBlocking(false);
-                                // 客户端channel注册到选择器，并关注可读和可写事件
-                                channelClient.register(selector, SelectionKey.OP_READ|SelectionKey.OP_WRITE);
+                                // 客户端channel注册到选择器，并关注可读和可写事件，并指定一个ByteBuffer作为attachment
+                                channelClient.register(selector, SelectionKey.OP_READ | SelectionKey.OP_WRITE, new Attachment());
                             } else if (_key.isReadable()) {
-                                ByteBuffer buffer = ByteBuffer.allocate(1024);
+                                Attachment attachment = (Attachment) _key.attachment();
                                 SocketChannel channelClient = (SocketChannel) _key.channel();
-                                int readBytes = channelClient.read(buffer);
-                                if (readBytes > 0) {
-                                    byte[] bytes = new byte[readBytes];
-                                    String clientSay = new String(bytes,"utf-8");
-                                    if("bye".equalsIgnoreCase(clientSay)){
-                                        _key.channel();
-                                        channelClient.close();
-                                    }
-                                    buffer.flip();
-                                    buffer.get(bytes, 0, readBytes);
-                                    _key.attach(bytes);
-                                    // 需要进行写入时才注册写事件，否则写事件一直是就绪的会不停的触发写事件
-                                    _key.interestOps(SelectionKey.OP_READ|SelectionKey.OP_WRITE);
-                                }else{
+                                int readBytes = channelClient.read(attachment.buffer);
+                                if (readBytes <= 0) {
                                     _key.cancel();
                                     channelClient.close();
                                 }
-                            } else if (_key.isWritable()) {
-                                byte[] bytes = (byte[]) _key.attachment();
-                                SocketChannel channelClient = (SocketChannel) _key.channel();
-                                if(null == bytes){
-                                    channelClient.write(ByteBuffer.wrap(new String("hi i am a echoServer, send \"bye\" to ended...\r\n").getBytes("utf-8")));
-                                }else{
-                                    ByteBuffer buffer = ByteBuffer.allocate(bytes.length+4);
-                                    buffer.put(bytes);
-                                    buffer.putChar('\r');
-                                    buffer.putChar('\n');
-                                    buffer.flip();
-                                    channelClient.write(buffer);
+                                attachment.readedBytes += readBytes;
+                                // 以换行符为界限，读取到了换行符才作为输入的结束，并订阅写事件
+                                boolean hasLineSplit = false;
+                                int stringBegin = attachment.begin;
+                                for (int i = attachment.begin; i < attachment.begin + attachment.readedBytes; i++) {
+                                    if (attachment.buffer.get(i) == 13) {
+                                        hasLineSplit = true;
+                                        attachment.begin = i;
+                                        break;
+                                    }
                                 }
+                                if (hasLineSplit) {
+                                    byte[] bytes = new byte[attachment.begin - stringBegin];
+                                    attachment.buffer.flip();
+                                    attachment.buffer.get(bytes, stringBegin, attachment.begin);
+                                    String clientSay = new String(bytes, "utf-8");
+                                    if ("bye".equalsIgnoreCase(clientSay)) {
+                                        _key.cancel();
+                                        channelClient.close();
+                                    } else {
+                                        ByteBuffer bufferToClient = ByteBuffer.allocate(bytes.length+4);
+                                        bufferToClient.put(bytes);
+                                        bufferToClient.putChar('\r');
+                                        bufferToClient.putChar('\n');
+                                        bufferToClient.flip();
+                                        channelClient.write(bufferToClient);
+                                    }
+                                    attachment.clear();
+                                    // 需要进行写入时才注册写事件，否则写事件一直是就绪的会不停的触发写事件
+                                    // _key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+                                }
+                            } else if (_key.isWritable()) {
+                                SocketChannel channelClient = (SocketChannel) _key.channel();
+                                channelClient.write(ByteBuffer.wrap(new String("hi i am a echoServer, send \"bye\" to ended...\r\n").getBytes("utf-8")));
                                 // 写事件处理完毕之后，立即取消写事件的注册，防止写事件一直就绪
-                                _key.interestOps(_key.interestOps()& ~SelectionKey.OP_WRITE);
+                                _key.interestOps(_key.interestOps() & ~SelectionKey.OP_WRITE);
                             }
                         }
                     }
