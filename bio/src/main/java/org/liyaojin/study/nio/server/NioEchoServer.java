@@ -62,6 +62,7 @@ public class NioEchoServer {
                     Set<SelectionKey> keys = selector.selectedKeys();
                     Iterator<SelectionKey> iteratorKeys = keys.iterator();
                     while (iteratorKeys.hasNext()) {
+                        // _key是channel级别的，一个channel一个SelectionKey，只是这个key的状态会发生变化，也就是attachment在同一个channel内是可以共享的
                         SelectionKey _key = iteratorKeys.next();
                         iteratorKeys.remove();
                         if (_key.isValid()) {
