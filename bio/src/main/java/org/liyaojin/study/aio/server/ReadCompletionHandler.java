@@ -1,7 +1,6 @@
 package org.liyaojin.study.aio.server;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
@@ -23,16 +22,28 @@ public class ReadCompletionHandler implements CompletionHandler<Integer, ByteBuf
         }
         // 得到客户端输入
         String strFromClient = "";
-        byte[] bytesFromClient = new byte[readCount];
-        attachment.flip();
-        attachment.get(bytesFromClient);
-        try {
-            strFromClient = new String(bytesFromClient,"utf-8");
-
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+        // 判断已经读取的内容中是否已经有换行符了
+        boolean isNewLine = false;
+        // 判断是否要继续接受用户的输入
+        boolean isNeedContinueRead = true;
+        int rBegin = 0,rEnd = 0;
+        for(int i = 0 ; i < attachment.remaining(); i++){
+            if(attachment.get(i) == 13){
+                rEnd = i;
+                rBegin = rEnd + 1;
+                isNewLine = true;
+                break;
+            }
+        }
+        // 从attachent中读取rBegin-rEnd中的内容
+        if(isNewLine){
+            byte[] clientSayBytes = new byte[rEnd+1];
         }
 
+        // 除非用户输入bye，否则一直read
+        if(isNeedContinueRead){
+            clientChannel.read(attachment,attachment,this);
+        }
     }
 
     @Override
